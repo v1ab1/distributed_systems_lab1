@@ -47,8 +47,6 @@ jobs:
           push: false
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
       - name: Save image
         run: docker save ${{ steps.meta.outputs.tags }} -o image.tar
