@@ -20,7 +20,7 @@ class TestPersonsService:
     def get_person_response(self):
         return PersonResponseSchema(
             id=1,
-            name="Иван Иванов",
+            name="Иван Иванович",
             age=30,
             address="Москва",
             work="Разработчик",
