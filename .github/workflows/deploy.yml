@@ -113,25 +113,25 @@ jobs:
             echo "APP_PORT=$APP_PORT" >> .env
             echo "DOCKER_IMAGE=$DOCKER_IMAGE" >> .env
             
-            # Проверяем, какая версия docker compose доступна и используем функцию
+            # Определяем команду docker compose
             if command -v docker-compose &> /dev/null; then
-              docker_compose() { docker-compose "$@"; }
+              # Используем старую версию docker-compose
+              docker-compose -f docker-compose.prod.yml down || true
+              docker image prune -f || true
+              docker-compose -f docker-compose.prod.yml pull
+              docker-compose -f docker-compose.prod.yml up -d
+              docker-compose -f docker-compose.prod.yml ps
+            elif docker compose version &> /dev/null 2>&1; then
+              # Используем новую версию docker compose (плагин)
+              docker compose -f docker-compose.prod.yml down || true
+              docker image prune -f || true
+              docker compose -f docker-compose.prod.yml pull
+              docker compose -f docker-compose.prod.yml up -d
+              docker compose -f docker-compose.prod.yml ps
             else
-              docker_compose() { docker compose "$@"; }
+              echo "Ошибка: docker-compose не найден"
+              exit 1
             fi
-            
-            # Останавливаем старые контейнеры
-            docker_compose -f docker-compose.prod.yml down || true
-            
-            # Удаляем старые образы
-            docker image prune -f || true
-            
-            # Запускаем новые контейнеры
-            docker_compose -f docker-compose.prod.yml pull
-            docker_compose -f docker-compose.prod.yml up -d
-            
-            # Проверяем статус
-            docker_compose -f docker-compose.prod.yml ps
             
             echo "Deployment completed successfully!"
           ENDSSH
