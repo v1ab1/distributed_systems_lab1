@@ -1,0 +1,46 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:13
+    container_name: persons_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-persons}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/:/docker-entrypoint-initdb.d/
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    image: ${DOCKER_IMAGE:-persons-app:latest}
+    container_name: persons_app
+    restart: always
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER:-program}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-test}
+      DB_NAME: ${POSTGRES_DB:-persons}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - app_network
+
+volumes:
+  postgres_data:
+
+networks:
+  app_network:
+    driver: bridge
