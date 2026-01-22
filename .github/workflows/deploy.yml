@@ -86,13 +86,25 @@ jobs:
             echo "$GITHUB_TOKEN" | docker login ghcr.io -u $GITHUB_ACTOR --password-stdin
             
             # Скачиваем docker-compose файл
-            curl -o docker-compose.prod.yml https://raw.githubusercontent.com/$GITHUB_REPOSITORY/master/docker-compose.prod.yml
+            curl -f -o docker-compose.prod.yml https://raw.githubusercontent.com/$GITHUB_REPOSITORY/master/docker-compose.prod.yml || {
+              echo "Ошибка: не удалось скачать docker-compose.prod.yml"
+              exit 1
+            }
             
             # Создаем директорию для SQL скриптов
             mkdir -p postgres
             
             # Скачиваем SQL скрипт
-            curl -o postgres/10-create-user-and-db.sql https://raw.githubusercontent.com/$GITHUB_REPOSITORY/master/postgres/10-create-user-and-db.sql
+            curl -f -o postgres/10-create-user-and-db.sql https://raw.githubusercontent.com/$GITHUB_REPOSITORY/master/postgres/10-create-user-and-db.sql || {
+              echo "Ошибка: не удалось скачать SQL скрипт"
+              exit 1
+            }
+            
+            # Проверяем, что файлы скачались
+            if [ ! -s docker-compose.prod.yml ]; then
+              echo "Ошибка: docker-compose.prod.yml пустой или не существует"
+              exit 1
+            fi
             
             # Создаем .env файл
             echo "POSTGRES_USER=$POSTGRES_USER" > .env
@@ -101,25 +113,25 @@ jobs:
             echo "APP_PORT=$APP_PORT" >> .env
             echo "DOCKER_IMAGE=$DOCKER_IMAGE" >> .env
             
-            # Проверяем, какая версия docker compose доступна
+            # Проверяем, какая версия docker compose доступна и используем функцию
             if command -v docker-compose &> /dev/null; then
-              DOCKER_COMPOSE_CMD="docker-compose"
+              docker_compose() { docker-compose "$@"; }
             else
-              DOCKER_COMPOSE_CMD="docker compose"
+              docker_compose() { docker compose "$@"; }
             fi
             
             # Останавливаем старые контейнеры
-            $DOCKER_COMPOSE_CMD -f docker-compose.prod.yml down || true
+            docker_compose -f docker-compose.prod.yml down || true
             
             # Удаляем старые образы
-            docker image prune -f
+            docker image prune -f || true
             
             # Запускаем новые контейнеры
-            $DOCKER_COMPOSE_CMD -f docker-compose.prod.yml pull
-            $DOCKER_COMPOSE_CMD -f docker-compose.prod.yml up -d
+            docker_compose -f docker-compose.prod.yml pull
+            docker_compose -f docker-compose.prod.yml up -d
             
             # Проверяем статус
-            $DOCKER_COMPOSE_CMD -f docker-compose.prod.yml ps
+            docker_compose -f docker-compose.prod.yml ps
             
             echo "Deployment completed successfully!"
           ENDSSH
