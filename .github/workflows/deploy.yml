@@ -72,33 +72,34 @@ jobs:
           POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
           APP_PORT: ${{ secrets.APP_PORT || '8080' }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          DOCKER_IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
         run: |
-          ssh $SERVER_USER@$SERVER_HOST << 'ENDSSH'
+          ssh $SERVER_USER@$SERVER_HOST bash -s << ENDSSH
             set -e
             
             # Переходим в директорию проекта
             cd ~/persons-app || mkdir -p ~/persons-app && cd ~/persons-app
             
             # Логинимся в GitHub Container Registry
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            echo "$GITHUB_TOKEN" | docker login ghcr.io -u $GITHUB_ACTOR --password-stdin
             
             # Скачиваем docker-compose файл
-            curl -o docker-compose.prod.yml https://raw.githubusercontent.com/${{ github.repository }}/master/docker-compose.prod.yml
+            curl -o docker-compose.prod.yml https://raw.githubusercontent.com/$GITHUB_REPOSITORY/master/docker-compose.prod.yml
             
             # Создаем директорию для SQL скриптов
             mkdir -p postgres
             
             # Скачиваем SQL скрипт
-            curl -o postgres/10-create-user-and-db.sql https://raw.githubusercontent.com/${{ github.repository }}/master/postgres/10-create-user-and-db.sql
+            curl -o postgres/10-create-user-and-db.sql https://raw.githubusercontent.com/$GITHUB_REPOSITORY/master/postgres/10-create-user-and-db.sql
             
             # Создаем .env файл
-            cat > .env << EOF
-POSTGRES_USER=${{ secrets.POSTGRES_USER }}
-POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
-POSTGRES_DB=${{ secrets.POSTGRES_DB }}
-APP_PORT=${{ secrets.APP_PORT || '8080' }}
-DOCKER_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-EOF
+            echo "POSTGRES_USER=$POSTGRES_USER" > .env
+            echo "POSTGRES_PASSWORD=$POSTGRES_PASSWORD" >> .env
+            echo "POSTGRES_DB=$POSTGRES_DB" >> .env
+            echo "APP_PORT=$APP_PORT" >> .env
+            echo "DOCKER_IMAGE=$DOCKER_IMAGE" >> .env
             
             # Проверяем, какая версия docker compose доступна
             if command -v docker-compose &> /dev/null; then
