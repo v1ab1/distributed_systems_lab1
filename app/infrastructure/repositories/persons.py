@@ -37,7 +37,7 @@ class PersonsRepository:
 
     async def delete_person(self, person_id: int) -> None:
         await self.get_by_id(person_id)
-        await self._db.execute(delete(PersonsDB).where(PersonsDB.id == id))
+        await self._db.execute(delete(PersonsDB).where(PersonsDB.id == person_id))
         await self._db.commit()
 
     async def update_person(self, person_id: int, person_body: PersonCreateRequestSchema) -> None:

@@ -1237,3 +1237,18 @@ buildNumber.properties
 .mvn/timing.properties
 # https://github.com/takari/maven-wrapper#usage-without-binary-jar
 .mvn/wrapper/maven-wrapper.jar
+.env.local
+.env.prod
+.env.*.local
+*.pem
+*.key
+!*.pub.key
+id_rsa
+id_ed25519
+yandex_deploy
+*.tar.gz
+persons-app.tar.gz
+postman-env-temp.json
+temp-*
+test-*
+.ruff_cache/

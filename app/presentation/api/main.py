@@ -12,12 +12,18 @@ from app.presentation.api import handlers
 @asynccontextmanager
 async def lifespan(app: FastAPI):  # type: ignore
     """Lifecycle события приложения."""
+    import asyncio
+
     persons_logger.info("Запуск приложения...")
+
+    await asyncio.sleep(2)
+
     try:
         await init_db()
+        persons_logger.info("Инициализация БД завершена успешно")
     except Exception as e:
         persons_logger.error(f"Ошибка при инициализации БД: {e}", exc_info=True)
-        raise
+        persons_logger.warning("Приложение запускается без инициализации БД")
     yield
     persons_logger.info("Остановка приложения...")
 
@@ -29,6 +35,7 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
     openapi_prefix="/api",
+    lifespan=lifespan,
 )
 
 routers.add_routers(app)

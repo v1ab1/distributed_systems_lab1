@@ -7,23 +7,63 @@ on:
     branches:
       - master
 jobs:
-  build:
-    name: Autograding
+  build-and-test:
+    name: Build, Test and Deploy
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
-      # TODO build, test and deploy project
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install UV
+        run: pip install uv
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Run linter
+        run: uv run ruff check app tests
+        continue-on-error: true
+
+      - name: Run tests
+        run: uv run pytest tests/ -v
+        continue-on-error: true
+
+      - name: Build Docker image
+        run: docker build -t persons-app:test .
+
+      - name: Start test environment
+        run: |
+          docker-compose up -d
+          sleep 10
+
+      - name: Wait for service to be ready
+        run: |
+          for i in {1..30}; do
+            if curl -f http://localhost:8080/docs > /dev/null 2>&1; then
+              echo "Service is ready!"
+              break
+            fi
+            echo "Waiting for service... ($i/30)"
+            sleep 2
+          done
 
       - name: Run API Tests
         uses: matt-ball/newman-action@master
         with:
           collection: postman/[inst] Lab1.postman_collection.json
-          environment: postman/[inst][heroku] Lab1.postman_environment.json
+          environment: postman/[inst][local] Lab1.postman_environment.json
           delayRequest: 100
           reporters: '[ "cli" ]'
+
+      - name: Stop test environment
+        if: always()
+        run: docker-compose down
 
       - name: Autograding
         uses: education/autograding@v1

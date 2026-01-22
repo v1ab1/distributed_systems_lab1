@@ -76,10 +76,51 @@ async def lazy_db_session() -> AsyncGenerator[AsyncSession, None]:
 
 
 async def init_db() -> None:
+    import asyncio
+
+    from sqlalchemy import text
+
     import app.db.models  # noqa: F401
 
     from app.db.base import Base
 
-    engine = get_engine()
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    max_retries = 10
+    retry_delay = 2
+
+    persons_logger.info("Начало инициализации БД...")
+
+    for attempt in range(max_retries):
+        try:
+            persons_logger.info(f"Попытка {attempt + 1}/{max_retries} подключения к БД...")
+            engine = get_engine()
+
+            async with engine.connect() as conn:
+                await conn.execute(text("SELECT 1"))
+
+            persons_logger.info("Подключение к БД установлено, создаём таблицы...")
+
+            async with engine.begin() as conn:
+                await conn.run_sync(Base.metadata.create_all)
+
+            persons_logger.info("✅ Таблицы успешно созданы в БД")
+
+            async with engine.connect() as conn:
+                result = await conn.execute(
+                    text("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'")
+                )
+                tables = [row[0] for row in result]
+                persons_logger.info(f"Созданные таблицы: {', '.join(tables) if tables else 'нет таблиц'}")
+
+            return
+        except Exception as e:
+            if attempt < max_retries - 1:
+                persons_logger.warning(
+                    f"Попытка {attempt + 1}/{max_retries} подключения к БД не удалась: {e}. "
+                    f"Повтор через {retry_delay} секунд..."
+                )
+                await asyncio.sleep(retry_delay)
+            else:
+                persons_logger.error(
+                    f"❌ Не удалось инициализировать БД после {max_retries} попыток: {e}", exc_info=True
+                )
+                raise
