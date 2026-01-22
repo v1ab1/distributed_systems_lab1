@@ -19,5 +19,5 @@ class PersonsService:
     async def delete_person(self, person_id: int) -> None:
         await self._persons_repository.delete_person(person_id)
 
-    async def update_person(self, person_id: int, person: PersonCreateRequestSchema) -> None:
-        await self._persons_repository.update_person(person_id, person)
+    async def update_person(self, person_id: int, person: PersonCreateRequestSchema) -> PersonResponseSchema:
+        return await self._persons_repository.update_person(person_id, person)

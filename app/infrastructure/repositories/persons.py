@@ -40,7 +40,7 @@ class PersonsRepository:
         await self._db.execute(delete(PersonsDB).where(PersonsDB.id == person_id))
         await self._db.commit()
 
-    async def update_person(self, person_id: int, person_body: PersonCreateRequestSchema) -> None:
+    async def update_person(self, person_id: int, person_body: PersonCreateRequestSchema) -> PersonResponseSchema:
         person = await self._db.get(PersonsDB, person_id)
         if not person:
             raise PersonNotFoundError(person_id)
@@ -48,3 +48,5 @@ class PersonsRepository:
             setattr(person, key, value)
         await self._db.commit()
         await self._db.refresh(person)
+        updated_person = await self.get_by_id(person_id)
+        return updated_person

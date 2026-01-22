@@ -40,8 +40,8 @@ async def get_person_by_id(
 @router.patch("/{person_id}", status_code=200)
 async def update_person_by_id(
     person_id: int, body: PersonCreateRequestSchema, persons_service: "PersonsService" = Depends(get_persons_service)
-) -> None:
-    await persons_service.update_person(person_id, body)
+) -> PersonResponseSchema:
+    return await persons_service.update_person(person_id, body)
 
 
 @router.delete("/{person_id}", status_code=204)
