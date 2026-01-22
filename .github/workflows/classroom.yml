@@ -46,9 +46,12 @@ jobs:
         with:
           context: .
           push: false
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: ghcr.io/${{ env.IMAGE_NAME }}:test-build
           labels: ${{ steps.meta.outputs.labels }}
-          outputs: type=docker,dest=/tmp/image.tar
+
+      - name: Save image to file
+        run: |
+          docker save ghcr.io/${{ env.IMAGE_NAME }}:test-build -o /tmp/image.tar 2>&1 | grep -v "Loading\|Loaded\|Saving\|Saved" || true
 
       - name: Upload image artifact
         uses: actions/upload-artifact@v4
@@ -56,6 +59,7 @@ jobs:
           name: docker-image
           path: /tmp/image.tar
           retention-days: 1
+          compression-level: 6
 
   test:
     name: Run Tests
@@ -93,12 +97,13 @@ jobs:
 
       - name: Load Docker image
         run: |
-          if [ -f /tmp/image.tar ]; then
-            docker load -i /tmp/image.tar 2>/dev/null
-          elif [ -f /tmp/docker-image/image.tar ]; then
-            docker load -i /tmp/docker-image/image.tar 2>/dev/null
+          IMAGE_FILE=$(find /tmp -name "image.tar" -o -name "*.tar" | head -1)
+          if [ -n "$IMAGE_FILE" ]; then
+            docker load -i "$IMAGE_FILE" >/dev/null 2>&1
+            echo "Image loaded successfully"
           else
-            find /tmp -name "*.tar" -exec docker load -i {} \; 2>/dev/null
+            echo "Error: Image file not found"
+            exit 1
           fi
 
       - name: Start test environment
