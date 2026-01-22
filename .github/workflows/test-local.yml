@@ -1,0 +1,71 @@
+name: Local Tests
+
+on:
+  pull_request:
+    branches:
+      - master
+      - develop
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Run Local Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install UV
+        run: pip install uv
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Run linter (ruff)
+        run: uv run ruff check app tests
+        continue-on-error: true
+
+      - name: Run type checker (mypy)
+        run: uv run mypy app
+        continue-on-error: true
+
+      - name: Run unit tests
+        run: uv run pytest tests/ -v --tb=short
+
+      - name: Start Docker Compose
+        run: |
+          docker-compose up -d
+          sleep 15
+
+      - name: Wait for service
+        run: |
+          for i in {1..30}; do
+            if curl -f http://localhost:8080/docs > /dev/null 2>&1; then
+              echo "Service is ready!"
+              break
+            fi
+            echo "Waiting for service... ($i/30)"
+            sleep 2
+          done
+
+      - name: Check service logs
+        if: always()
+        run: docker-compose logs app
+
+      - name: Run Newman API Tests
+        uses: matt-ball/newman-action@master
+        with:
+          collection: postman/[inst] Lab1.postman_collection.json
+          environment: postman/[inst][local] Lab1.postman_environment.json
+          delayRequest: 100
+          reporters: '[ "cli" ]'
+
+      - name: Stop Docker Compose
+        if: always()
+        run: docker-compose down -v
